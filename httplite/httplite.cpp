@@ -2,10 +2,21 @@
 //
 
 #include <iostream>
+#include "server.h"
 
 int main()
 {
     std::cout << "Hello World!\n";
+
+    int ret = svr_init();
+    if (ret < 0)
+    {
+        return -1;
+    }
+
+    svr_run();
+
+    svr_close();
 }
 
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu
