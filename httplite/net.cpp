@@ -94,3 +94,9 @@ int net_read_package(int fd, char* buff, int len)
 
 	return n;
 }
+
+
+int net_send_package(int fd, char* buff, int len)
+{
+	return send(fd, buff, len, 0);
+}

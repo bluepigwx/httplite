@@ -1,4 +1,5 @@
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <ctype.h>
 #include "net.h"
@@ -26,14 +27,15 @@ void svr_close()
 }
 
 
-static int svr_parse_method(client_t* client)
+// GET or POST
+static int svr_parse_method(const char* inbuff, int inlen, char* outbuff, int outlen)
 {
 	int i = 0;
 	int j = 0;
 	// 先跳过空格
 	while (true)
 	{
-		if (isspace(client->buff[j]))
+		if (isspace(inbuff[j]))
 		{
 			++j;
 			continue;
@@ -46,34 +48,123 @@ static int svr_parse_method(client_t* client)
 	}
 
 	// 直到第一个空白字符之前都是method
-	while (!isspace(client->buff[j]))
+	while (!isspace(inbuff[j]))
 	{
-		if (i >= sizeof(client->method))
+		if (i >= sizeof(outbuff))
 		{
 			break;
 		}
 
-		client->method[i] = client->buff[j];
+		outbuff[i] = inbuff[j];
 		++i;
 		++j;
 	}
 
+	return j;
+}
+
+
+static int svr_parse_url(const char* inbuff, int inlen, char* outbuff, int outlen)
+{
 	// 跳过空白符
-	while (isspace(client->buff[j]))
+	int j = 0;
+	int i = 0;
+	while (isspace(inbuff[j]))
 		++j;
 
-	i = 0;
 	// 直到第一个空白字符之前都是url
-	while (!isspace(client->buff[j]))
+	while (!isspace(inbuff[j]))
 	{
-		if (i >= sizeof(client->method))
+		if (i >= outlen)
 		{
 			break;
 		}
 
-		client->url[i] = client->buff[j];
+		outbuff[i] = inbuff[j];
 		++i;
 		++j;
+	}
+
+	return 0;
+}
+
+
+static int svr_file_not_found(client_t* client)
+{
+	char szResponse[1024] = {0};
+
+	strcat_s(szResponse, "HTTP/1.0 404 NOT FOUND\r\n");
+	strcat_s(szResponse, "Server: jdbhttpd/0.1.0\r\n");
+	strcat_s(szResponse, "Content-Type: text/html\r\n");
+	strcat_s(szResponse, "\r\n");
+	strcat_s(szResponse, "<HTML><TITLE>Not Found</TITLE>\r\n");
+	strcat_s(szResponse, "<BODY><P>The server could not fulfill\r\n");
+	strcat_s(szResponse, "your request because the resource specified\r\n");
+	strcat_s(szResponse, "is unavailable or nonexistent.\r\n");
+	strcat_s(szResponse, "</BODY></HTML>\r\n");
+
+	net_send_package(client->client_fd, szResponse, (int)strlen(szResponse));
+
+	return 0;
+}
+
+
+static int svr_send_header(client_t* client)
+{
+	char szResponse[1024] = { 0 };
+
+	strcat_s(szResponse, "HTTP/1.0 200 OK\r\n");
+	strcat_s(szResponse, "Server: jdbhttpd/0.1.0\r\n");
+	strcat_s(szResponse, "Content-Type: text/html\r\n");
+	strcat_s(szResponse, "\r\n");
+
+	net_send_package(client->client_fd, szResponse, (int)strlen(szResponse));
+
+	return 0;
+}
+
+
+static int svr_response_file(client_t* client)
+{
+	char buff[1024];
+	sprintf_s(buff, "htdocs/%s", client->url);
+	FILE* file = NULL;
+	int ret = fopen_s(&file, buff, "r");
+	if (file == NULL)
+	{
+		svr_file_not_found(client);
+		return -1;
+	}
+
+	svr_send_header(client);
+
+	fgets(buff, sizeof(buff), file);
+	while (!feof(file))
+	{
+		net_send_package(client->client_fd, buff, (int)strlen(buff));
+		fgets(buff, sizeof(buff), file);
+	}
+
+	fclose(file);
+	
+	return 0;
+}
+
+
+static int svr_parse_http(client_t* client)
+{
+	// GET or POST
+	int index = svr_parse_method(client->buff, sizeof(client->buff), client->method, sizeof(client->method));
+	if (index < 0)
+	{
+		return -1;
+	}
+	// URL
+	index += svr_parse_url(&client->buff[index], sizeof(client->buff) - index, client->url, sizeof(client->url));
+
+	if (strcmp(client->method, "GET") == 0)
+	{
+		svr_response_file(client);
 	}
 
 	return 0;
@@ -90,12 +181,10 @@ int svr_run()
 		client.client_fd = net_onconnect();
 
 		int ret = net_read_package(client.client_fd, client.buff, sizeof(client.buff));
-		if (ret < 0)
+		if (ret > 0)
 		{
-			break;
+			svr_parse_http(&client);
 		}
-
-		svr_parse_method(&client);
 
 		net_close_client(client.client_fd);
 	}
