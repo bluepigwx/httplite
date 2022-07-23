@@ -171,6 +171,18 @@ static client_t* svr_get_client(int clientfd)
 }
 
 
+static stream_t* svr_get_fd_stream(int fd)
+{
+	client_t* client = svr_get_client(fd);
+	if (client == NULL)
+	{
+		return NULL;
+	}
+
+	return &client->stream;
+}
+
+
 static void svr_on_close(int clientfd)
 {
 	// ´ÓÒµÎñ²ãÒÆ³ý
@@ -267,6 +279,7 @@ int svr_init()
 	backend.accept_cb = svr_on_accept;
 	backend.close_cb = svr_on_close;
 	backend.err_cb = svr_on_close;
+	backend.get_stream_cb = svr_get_fd_stream;
 
 	return net_listen_port(&backend, HTTPSVR_PORT);
 }

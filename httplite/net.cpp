@@ -148,6 +148,7 @@ int net_loop(net_backend_t* backend)
 		int ret = select(0, &tmp, NULL, NULL, &t);
 		if (ret < 0)
 		{
+			int err = ::WSAGetLastError();
 			return -1;
 		}
 
