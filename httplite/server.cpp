@@ -3,28 +3,34 @@
 #include <string.h>
 #include <ctype.h>
 #include "net.h"
+#include "buff_stream.h"
 #include "server.h"
 
 #define HTTPSVR_PORT 8899
 
-int svr_init()
-{
-	int ret = net_init();
-	if (ret < 0)
-	{
-		return -1;
-	}
-
-	ret = net_listen_port(HTTPSVR_PORT);
-
-	return ret;
-}
+#define MAX_CLENT_CNT 63
 
 
-void svr_close()
-{
-	net_close();
-}
+
+#define BUFF_LEN_256 256
+
+typedef struct {
+	int client_fd;
+	stream_t stream;
+	char method[BUFF_LEN_256];
+	char url[BUFF_LEN_256];
+} client_t;
+
+
+typedef struct {
+	client_t clients[MAX_CLENT_CNT];
+	int cnt;
+} client_set_t;
+
+
+net_backend_t backend;
+
+client_set_t client_sets;
 
 
 // GET or POST
@@ -170,24 +176,44 @@ static int svr_parse_http(client_t* client)
 	return 0;
 }
 
+static int svr_on_accept(int clientfd)
+{
+	if (client_sets.cnt >= MAX_CLENT_CNT)
+	{
+		return -1;
+	}
+
+	client_t* client = &client_sets.clients[client_sets.cnt];
+	memset(client, 0, sizeof(client_t));
+	client->client_fd = clientfd;
+	client->buff.cap = MAX_BUFF_LEN;
+	client->buff.len = 0;
+
+	++client_sets.cnt;
+
+	return 0;
+}
 
 int svr_run()
 {
-	while (true)
+	return net_loop(&backend);
+}
+
+void svr_close()
+{
+	net_close(&backend);
+}
+
+int svr_init()
+{
+	memset(&backend, 0, sizeof(backend));
+	int ret = net_init(&backend);
+	if (ret < 0)
 	{
-		client_t client;
-		memset(&client, 0, sizeof(client));
-
-		client.client_fd = net_onconnect();
-
-		int ret = net_read_package(client.client_fd, client.buff, sizeof(client.buff));
-		if (ret > 0)
-		{
-			svr_parse_http(&client);
-		}
-
-		net_close_client(client.client_fd);
+		return -1;
 	}
 
-	return 0;
+	backend.accept_cb = svr_on_accept;
+
+	return net_listen_port(&backend, HTTPSVR_PORT);
 }

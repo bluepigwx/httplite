@@ -1,10 +1,7 @@
-#include <WinSock2.h>
 #include "net.h"
 
 
-int http_socket = -1;
-
-int net_init()
+int net_init(net_backend_t* backend)
 {
 	WSADATA wsaData;
 	int ret = WSAStartup(MAKEWORD(2, 2), &wsaData);
@@ -13,34 +10,36 @@ int net_init()
 		return -1;
 	}
 
-	http_socket = -1;
+	backend->svrfd = -1;
+	FD_ZERO(&backend->fdsets);
 
 	return 0;
 }
 
 
-void net_close()
+void net_close(net_backend_t* backend)
 {
-	if (http_socket > 0)
+	if (backend->svrfd > 0)
 	{
-		closesocket(http_socket);
+		closesocket(backend->svrfd);
 	}
 
 	WSACleanup();
-
-	return;
+	FD_ZERO(&backend->fdsets);
 }
 
 
-void net_close_client(int client_fd)
+void net_close_client(net_backend_t* backend, int client_fd)
 {
 	closesocket(client_fd);
+
+	FD_CLR(client_fd, &backend->fdsets);
 }
 
-int net_listen_port(int port)
+int net_listen_port(net_backend_t* backend, int port)
 {
-	http_socket = (int)socket(AF_INET, SOCK_STREAM, 0);
-	if (http_socket < 0)
+	backend->svrfd = (int)socket(AF_INET, SOCK_STREAM, 0);
+	if (backend->svrfd < 0)
 	{
 		return -1;
 	}
@@ -51,17 +50,17 @@ int net_listen_port(int port)
 	addr.sin_port = htons(port);
 	addr.sin_addr.s_addr = inet_addr("127.0.0.1");
 
-	int ret = bind(http_socket, (struct sockaddr*)&addr, sizeof(addr));
+	int ret = bind(backend->svrfd, (struct sockaddr*)&addr, sizeof(addr));
 	if (ret < 0)
-	{	
-		net_close();
+	{
+		net_close(backend);
 		return -1;
 	}
 
-	ret = listen(http_socket, 20);
+	ret = listen(backend->svrfd, 20);
 	if (ret < 0)
 	{
-		net_close();
+		net_close(backend);
 		return -1;
 	}
 
@@ -69,30 +68,110 @@ int net_listen_port(int port)
 }
 
 
-int net_onconnect()
+static int net_onconnect(net_backend_t* backend)
 {
-	if (http_socket < 0)
-	{
-		return -1;
-	}
-
 	struct sockaddr_in client_addr;
 	int addr_len = sizeof(client_addr);
 
-	int client_fd = (int)accept(http_socket, (struct sockaddr*)&client_addr, &addr_len);
+	int client_fd = (int)accept(backend->svrfd, (struct sockaddr*)&client_addr, &addr_len);
+	int ret = backend->accept_cb(client_fd);
+	if (ret < 0)
+	{
+		closesocket(client_fd);
+		return -1;
+	}
+
+	FD_SET(client_fd, &backend->fdsets);
+
 	return client_fd;
 }
 
 
-int net_read_package(int fd, char* buff, int len)
+static int net_read_package(net_backend_t* backend, int fd)
 {
-	int n = recv(fd, buff, len, 0);
-	if (n <= 0)
+	int len = 0;
+	stream_t* stream = backend->get_stream_cb(fd);
+	if (stream == NULL)
 	{
-		return-1;
+		return -1;
 	}
 
-	return n;
+	int n = 0;
+	int overflow = false;
+	do 
+	{
+		if (stream->len >= stream->cap)
+		{
+			overflow = true;
+			break;
+		}
+
+		char* begin = stream->buff + stream->len;
+		int size = stream->cap - stream->len;
+		n = recv(fd, begin, size, 0);
+		if (n > 0)
+		{
+			stream->len += n;
+		}
+
+	} while ( n >=0 && overflow == false);
+
+	if (n == 0)
+	{
+		// gracefully closed
+		backend->close_cb(fd);
+	}
+	else if (n < 0 && ::WSAGetLastError() != WSAEWOULDBLOCK)
+	{
+		// some error
+		backend->err_cb(fd);
+	}
+	else
+	{
+		// process
+		backend->process_cb(fd, stream, overflow);
+	}
+
+	return 0;
+}
+
+
+int net_loop(net_backend_t* backend)
+{
+	timeval t;
+	t.tv_sec = 0;
+	t.tv_usec = 1000;
+
+	fd_set tmp = backend->fdsets;
+
+	while (true)
+	{
+		int ret = select(0, &tmp, NULL, NULL, &t);
+		if (ret < 0)
+		{
+			return -1;
+		}
+
+		for (int i = 0; i < tmp.fd_count; ++i)
+		{
+			int fd = tmp.fd_array[i];
+			if (FD_ISSET(fd, &tmp))
+			{
+				if (fd == backend->svrfd)
+				{
+					// do accept
+					net_onconnect(backend);
+				}
+				else
+				{
+					// do recv
+					net_read_package(backend, fd);
+				}
+			}
+		}
+	}
+
+	return 0;
 }
 
 
