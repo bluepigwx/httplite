@@ -63,6 +63,8 @@ int net_listen_port(net_backend_t* backend, int port)
 		return -1;
 	}
 
+	FD_SET(backend->svrfd, &backend->fdsets);
+
 	return 0;
 }
 
@@ -79,6 +81,9 @@ static int net_onconnect(net_backend_t* backend)
 		closesocket(client_fd);
 		return -1;
 	}
+	// ÉèÖÃÎª·Ç×èÈûfd
+	unsigned long mod = 1;
+	ret = ioctlsocket(client_fd, FIONBIO, &mod);
 
 	FD_SET(client_fd, &backend->fdsets);
 
@@ -141,10 +146,12 @@ int net_loop(net_backend_t* backend)
 	t.tv_sec = 0;
 	t.tv_usec = 1000;
 
-	fd_set tmp = backend->fdsets;
+	fd_set tmp;
+	FD_ZERO(&tmp);
 
 	while (true)
 	{
+		tmp = backend->fdsets;
 		int ret = select(0, &tmp, NULL, NULL, &t);
 		if (ret < 0)
 		{

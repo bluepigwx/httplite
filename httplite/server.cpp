@@ -253,6 +253,8 @@ static int svr_process_packet(int fd, stream_t* stream, bool is_overflow)
 		svr_response_file(client);
 	}
 
+	stream->len = 0;
+
 	return 0;
 }
 
@@ -280,6 +282,7 @@ int svr_init()
 	backend.close_cb = svr_on_close;
 	backend.err_cb = svr_on_close;
 	backend.get_stream_cb = svr_get_fd_stream;
+	backend.process_cb = svr_process_packet;
 
 	return net_listen_port(&backend, HTTPSVR_PORT);
 }
