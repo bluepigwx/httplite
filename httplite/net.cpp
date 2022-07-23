@@ -32,7 +32,6 @@ void net_close(net_backend_t* backend)
 void net_close_client(net_backend_t* backend, int client_fd)
 {
 	closesocket(client_fd);
-
 	FD_CLR(client_fd, &backend->fdsets);
 }
 
@@ -97,7 +96,7 @@ static int net_read_package(net_backend_t* backend, int fd)
 	}
 
 	int n = 0;
-	int overflow = false;
+	bool overflow = false;
 	do 
 	{
 		if (stream->len >= stream->cap)
@@ -114,7 +113,7 @@ static int net_read_package(net_backend_t* backend, int fd)
 			stream->len += n;
 		}
 
-	} while ( n >=0 && overflow == false);
+	} while ( n > 0 && overflow == false);
 
 	if (n == 0)
 	{
@@ -152,9 +151,9 @@ int net_loop(net_backend_t* backend)
 			return -1;
 		}
 
-		for (int i = 0; i < tmp.fd_count; ++i)
+		for (unsigned int i = 0; i < tmp.fd_count; ++i)
 		{
-			int fd = tmp.fd_array[i];
+			int fd = (int)tmp.fd_array[i];
 			if (FD_ISSET(fd, &tmp))
 			{
 				if (fd == backend->svrfd)

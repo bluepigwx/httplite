@@ -157,27 +157,44 @@ static int svr_response_file(client_t* client)
 }
 
 
-static int svr_parse_http(client_t* client)
+static client_t* svr_get_client(int clientfd)
 {
-	// GET or POST
-	int index = svr_parse_method(client->buff, sizeof(client->buff), client->method, sizeof(client->method));
-	if (index < 0)
+	for (int i = 0; i < client_sets.cnt; ++i)
 	{
-		return -1;
-	}
-	// URL
-	index += svr_parse_url(&client->buff[index], sizeof(client->buff) - index, client->url, sizeof(client->url));
-
-	if (strcmp(client->method, "GET") == 0)
-	{
-		svr_response_file(client);
+		if (client_sets.clients[i].client_fd == clientfd)
+		{
+			return &client_sets.clients[i];
+		}
 	}
 
-	return 0;
+	return NULL;
+}
+
+
+static void svr_on_close(int clientfd)
+{
+	// ´ÓÒµÎñ²ãÒÆ³ý
+	for (int i = 0; i < client_sets.cnt; ++i)
+	{
+		if (client_sets.clients[i].client_fd == clientfd)
+		{
+			client_sets.clients[i] = client_sets.clients[client_sets.cnt - 1];
+			--client_sets.cnt;
+
+			break;
+		}
+	}
+	// ´ÓÍøÂç²ãÒÆ³ý
+	net_close_client(&backend, clientfd);
 }
 
 static int svr_on_accept(int clientfd)
 {
+	if (clientfd <= 0)
+	{
+		return -1;
+	}
+
 	if (client_sets.cnt >= MAX_CLENT_CNT)
 	{
 		return -1;
@@ -186,13 +203,47 @@ static int svr_on_accept(int clientfd)
 	client_t* client = &client_sets.clients[client_sets.cnt];
 	memset(client, 0, sizeof(client_t));
 	client->client_fd = clientfd;
-	client->buff.cap = MAX_BUFF_LEN;
-	client->buff.len = 0;
+
+	client->stream.cap = MAX_BUFF_LEN;
+	client->stream.len = 0;
 
 	++client_sets.cnt;
 
 	return 0;
 }
+
+
+static int svr_process_packet(int fd, stream_t* stream, bool is_overflow)
+{
+	if (is_overflow == true)
+	{
+		svr_on_close(fd);
+		return -1;
+	}
+
+	client_t* client = svr_get_client(fd);
+	if (client == NULL)
+	{
+		svr_on_close(fd);
+		return -1;
+	}
+
+	int index = svr_parse_method(stream->buff, stream->len, client->method, sizeof(client->method));
+	if (index < 0)
+	{
+		svr_on_close(fd);
+		return -1;
+	}
+
+	index += svr_parse_url(&stream->buff[index], stream->len - index, client->url, sizeof(client->url));
+	if (strcmp(client->method, "GET") == 0)
+	{
+		svr_response_file(client);
+	}
+
+	return 0;
+}
+
 
 int svr_run()
 {
@@ -214,6 +265,8 @@ int svr_init()
 	}
 
 	backend.accept_cb = svr_on_accept;
+	backend.close_cb = svr_on_close;
+	backend.err_cb = svr_on_close;
 
 	return net_listen_port(&backend, HTTPSVR_PORT);
 }

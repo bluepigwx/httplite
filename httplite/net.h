@@ -9,7 +9,7 @@ typedef void (*close_client_cb)(int fd);
 typedef void (*on_client_err_cb)(int fd);
 typedef stream_t* (*get_fd_stream_cb)(int fd);
 typedef int (*send_fd_buff_cb)(int fd, char* buff, int len);
-typedef int (*process_packet_cb)(int fd, stream_t* stream, int is_overflow);
+typedef int (*process_packet_cb)(int fd, stream_t* stream, bool is_overflow);
 
 
 typedef struct {
