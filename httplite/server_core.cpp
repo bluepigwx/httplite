@@ -2,9 +2,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <ctype.h>
-#include "net.h"
+#include "select_backend.h"
 #include "buff_stream.h"
-#include "server.h"
+#include "server_core.h"
 #include "server_internal.h"
 
 
@@ -290,32 +290,6 @@ int svr_init()
 }
 
 
-static int accept_callback(int fd, void* arg)
-{
-	svr_event_t* ev = (svr_event_t*)arg;
-	server_t* server = ev->svr;
-	svr_backend_t* backend = server->backend;
-
-	struct sockaddr_in client_addr;
-	int addr_len = sizeof(client_addr);
-	int client_fd = (int)accept(fd, (struct sockaddr*)&client_addr, &addr_len);
-
-	int ret = backend->func_add(server, client_fd);
-	if (ret < 0)
-	{
-		closesocket(client_fd);
-		return -1;
-	}
-	// 设置为非阻塞fd，不放backend否则每个后端都要重新写一遍
-	unsigned long mod = 1;
-	ret = ioctlsocket(client_fd, FIONBIO, &mod);
-
-	ev = svr_new_event(server, client_fd, accept_callback);
-
-	return 0;
-}
-
-
 svr_event_t* svr_new_event(server_t* server, int fd, event_callback call_back)
 {
 	svr_event_t* ev = (svr_event_t*)calloc(1, sizeof(svr_event_t));
@@ -377,7 +351,7 @@ int svr_new_listener(server_t* server, int port, event_callback call_back)
 		ret = svr_event_add(ev);
 		if (ret < 0)
 		{
-			break;;
+			break;
 		}
 	} while (0);
 

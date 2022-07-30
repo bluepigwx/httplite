@@ -18,24 +18,30 @@
     <ClCompile Include="httplite.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="net.cpp">
+    <ClCompile Include="select_backend.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="server.cpp">
+    <ClCompile Include="server_core.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="httpsvr.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="net.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="server.h">
+    <ClInclude Include="select_backend.h">
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="buff_stream.h">
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="server_internal.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="server_core.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="httpsvr.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
