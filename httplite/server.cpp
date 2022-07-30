@@ -5,6 +5,8 @@
 #include "net.h"
 #include "buff_stream.h"
 #include "server.h"
+#include "server_internal.h"
+
 
 #define HTTPSVR_PORT 8899
 
@@ -259,12 +261,12 @@ static int svr_process_packet(int fd, stream_t* stream, bool is_overflow)
 }
 
 
-int svr_run()
+int svr_run(server_t* svr)
 {
 	return net_loop(&backend);
 }
 
-void svr_close()
+void svr_close(server_t* svr)
 {
 	net_close(&backend);
 }
@@ -285,4 +287,122 @@ int svr_init()
 	backend.process_cb = svr_process_packet;
 
 	return net_listen_port(&backend, HTTPSVR_PORT);
+}
+
+
+static int accept_callback(int fd, void* arg)
+{
+	svr_event_t* ev = (svr_event_t*)arg;
+	server_t* server = ev->svr;
+	svr_backend_t* backend = server->backend;
+
+	struct sockaddr_in client_addr;
+	int addr_len = sizeof(client_addr);
+	int client_fd = (int)accept(fd, (struct sockaddr*)&client_addr, &addr_len);
+
+	int ret = backend->func_add(server, client_fd);
+	if (ret < 0)
+	{
+		closesocket(client_fd);
+		return -1;
+	}
+	// 设置为非阻塞fd，不放backend否则每个后端都要重新写一遍
+	unsigned long mod = 1;
+	ret = ioctlsocket(client_fd, FIONBIO, &mod);
+
+	ev = svr_new_event(server, client_fd, accept_callback);
+
+	return 0;
+}
+
+
+svr_event_t* svr_new_event(server_t* server, int fd, event_callback call_back)
+{
+	svr_event_t* ev = (svr_event_t*)calloc(1, sizeof(svr_event_t));
+	if (ev == nullptr)
+	{
+		return nullptr;
+	}
+
+	ev->svr = server;
+	ev->fd = fd;
+	ev->event_callback = call_back;
+
+	return ev;
+}
+
+
+void svr_delete_event(server_t* server, svr_event_t* ev)
+{
+	free(ev);
+}
+
+
+int svr_new_listener(server_t* server, int port, event_callback call_back)
+{
+	int svrfd = (int)socket(AF_INET, SOCK_STREAM, 0);
+	if (svrfd < 0)
+	{
+		return -1;
+	}
+
+	struct sockaddr_in addr;
+	memset(&addr, 0, sizeof(addr));
+	addr.sin_family = AF_INET;
+	addr.sin_port = htons(port);
+	addr.sin_addr.s_addr = inet_addr("127.0.0.1");
+
+	int ret = 0;
+	svr_event_t* ev = nullptr;
+	do 
+	{
+		ret = bind(svrfd, (struct sockaddr*)&addr, sizeof(addr));
+		if (ret < 0)
+		{
+			break;
+		}
+
+		ret = listen(svrfd, 20);
+		if (ret < 0)
+		{
+			break;
+		}
+
+		ev = svr_new_event(server, svrfd, call_back);
+		if (ev == nullptr)
+		{
+			break;
+		}
+
+		ret = svr_event_add(ev);
+		if (ret < 0)
+		{
+			break;;
+		}
+	} while (0);
+
+	if (ret < 0 || ev == nullptr)
+	{
+		closesocket(svrfd);
+		if (ev)
+		{
+			svr_delete_event(server, ev);
+		}
+
+		return -1;
+	}
+	
+	return 0;
+}
+
+
+int svr_event_add(svr_event_t* svr_event)
+{
+	return 0;
+}
+
+
+int svr_event_del(svr_event_t* svr_event)
+{
+	return 0;
 }

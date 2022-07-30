@@ -148,6 +148,7 @@
     <ClInclude Include="buff_stream.h" />
     <ClInclude Include="net.h" />
     <ClInclude Include="server.h" />
+    <ClInclude Include="server_internal.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

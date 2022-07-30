@@ -14,9 +14,9 @@ int main()
         return -1;
     }
 
-    svr_run();
+    svr_run(0);
 
-    svr_close();
+    svr_close(0);
 }
 
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu

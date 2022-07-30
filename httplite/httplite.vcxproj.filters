@@ -35,5 +35,8 @@
     <ClInclude Include="buff_stream.h">
       <Filter>Source Files</Filter>
     </ClInclude>
+    <ClInclude Include="server_internal.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
