@@ -1,20 +1,77 @@
 #include "select_backend.h"
+#include "server_core.h"
 
 
-int net_init(net_backend_t* backend)
+typedef struct {
+	fd_set fdsets;
+	svr_event_t* events[FD_SETSIZE];
+}select_data;
+
+
+static void* select_init(server_t* server)
 {
 	WSADATA wsaData;
 	int ret = WSAStartup(MAKEWORD(2, 2), &wsaData);
 	if (ret != 0)
 	{
-		return -1;
+		return nullptr;
 	}
 
-	backend->svrfd = -1;
-	FD_ZERO(&backend->fdsets);
+	select_data* data = (select_data*)calloc(1, sizeof(select_data));
+	FD_ZERO(&data->fdsets);
+	
+	return (void*)data;
+}
+
+static int select_add(server_t* server, int fd)
+{
+	select_data* data = (select_data*)server->backend_data;
+	FD_SET(fd, &data->fdsets);
 
 	return 0;
 }
+
+static void select_del(server_t* server, int fd)
+{
+	select_data* data = (select_data*)server->backend_data;
+	closesocket(fd);
+	FD_CLR(fd, &data->fdsets);
+}
+
+static int select_dispatch(server_t* server, struct timeval* tm)
+{
+	select_data* data = (select_data*)server->backend_data;
+
+	fd_set tmp;
+	FD_ZERO(&tmp);
+
+	tmp = data->fdsets;
+	int ret = select(0, &tmp, NULL, NULL, tm);
+	if (ret < 0)
+	{
+		int err = ::WSAGetLastError();
+		return -1;
+	}
+
+	for (int i = 0; i < tmp.fd_count; ++i)
+	{
+		svr_event_t* ev = nullptr;
+		if (FD_ISSET(i, tmp.fd_array))
+		{
+			ev = data->events[i];
+			svr_event_active(server, ev);
+		}
+	}
+
+	return 0;
+}
+
+
+static int select_finit(server_t* server)
+{
+	
+}
+
 
 
 void net_close(net_backend_t* backend)
@@ -33,61 +90,6 @@ void net_close_client(net_backend_t* backend, int client_fd)
 {
 	closesocket(client_fd);
 	FD_CLR(client_fd, &backend->fdsets);
-}
-
-int net_listen_port(net_backend_t* backend, int port)
-{
-	backend->svrfd = (int)socket(AF_INET, SOCK_STREAM, 0);
-	if (backend->svrfd < 0)
-	{
-		return -1;
-	}
-
-	struct sockaddr_in addr;
-	memset(&addr, 0, sizeof(addr));
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(port);
-	addr.sin_addr.s_addr = inet_addr("127.0.0.1");
-
-	int ret = bind(backend->svrfd, (struct sockaddr*)&addr, sizeof(addr));
-	if (ret < 0)
-	{
-		net_close(backend);
-		return -1;
-	}
-
-	ret = listen(backend->svrfd, 20);
-	if (ret < 0)
-	{
-		net_close(backend);
-		return -1;
-	}
-
-	FD_SET(backend->svrfd, &backend->fdsets);
-
-	return 0;
-}
-
-
-static int net_onconnect(net_backend_t* backend)
-{
-	struct sockaddr_in client_addr;
-	int addr_len = sizeof(client_addr);
-
-	int client_fd = (int)accept(backend->svrfd, (struct sockaddr*)&client_addr, &addr_len);
-	int ret = backend->accept_cb(client_fd);
-	if (ret < 0)
-	{
-		closesocket(client_fd);
-		return -1;
-	}
-	// ÉèÖÃÎª·Ç×èÈûfd
-	unsigned long mod = 1;
-	ret = ioctlsocket(client_fd, FIONBIO, &mod);
-
-	FD_SET(client_fd, &backend->fdsets);
-
-	return client_fd;
 }
 
 

@@ -24,10 +24,8 @@ typedef struct {
 }net_backend_t;
 
 
-int net_init(net_backend_t* backend);
 void net_close(net_backend_t* backend);
 void net_close_client(net_backend_t* backend, int client_fd);
-int net_listen_port(net_backend_t* backend, int port);
 int net_loop(net_backend_t* backend);
 
 int net_send_package(int fd, char* buff, int len);
