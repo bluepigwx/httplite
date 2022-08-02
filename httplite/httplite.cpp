@@ -2,21 +2,17 @@
 //
 
 #include <iostream>
-#include "server_core.h"
+#include "httpsvr.h"
 
 int main()
 {
     std::cout << "Hello World!\n";
 
-    int ret = 0;//svr_init();
-    if (ret < 0)
-    {
-        return -1;
-    }
+    httpsvr_start(8899);
 
-    svr_run(0);
+    httpsvr_run();
 
-    svr_close(0);
+    httpsvr_stop();
 }
 
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu

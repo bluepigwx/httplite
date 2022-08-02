@@ -1,9 +1,56 @@
 #include <WinSock2.h>
 #include "httpsvr.h"
 #include "server_core.h"
+#include "select_backend.h"
+
+server_t* server_core = nullptr;
+
 
 static int on_read_callback(int fd, void* arg)
 {
+	int len = 0;
+	stream_t* stream = nullptr;//backend->get_stream_cb(fd);
+	if (stream == NULL)
+	{
+		return -1;
+	}
+
+	int n = 0;
+	bool overflow = false;
+	do
+	{
+		if (stream->len >= stream->cap)
+		{
+			overflow = true;
+			break;
+		}
+
+		char* begin = stream->buff + stream->len;
+		int size = stream->cap - stream->len;
+		n = recv(fd, begin, size, 0);
+		if (n > 0)
+		{
+			stream->len += n;
+		}
+
+	} while (n > 0 && overflow == false);
+
+	if (n == 0)
+	{
+		// gracefully closed
+		//backend->close_cb(fd);
+	}
+	else if (n < 0 && ::WSAGetLastError() != WSAEWOULDBLOCK)
+	{
+		// some error
+		//backend->err_cb(fd);
+	}
+	else
+	{
+		// process
+		//backend->process_cb(fd, stream, overflow);
+	}
+
 	return 0;
 }
 
@@ -39,4 +86,30 @@ static int on_accept(int fd, void* arg)
 	svr_event_add(new_ev);
 
 	return 0;
+}
+
+
+int httpsvr_start(int port)
+{
+	svr_backend_t* bk = get_select_backend();
+	server_core = svr_new(bk);
+	if (server_core == nullptr)
+	{
+		return -1;
+	}
+
+	int ret = svr_new_listener(server_core, port, on_accept);
+	return ret;
+}
+
+
+void httpsvr_stop()
+{
+	svr_close(server_core);
+}
+
+
+int httpsvr_run()
+{
+	return svr_run(server_core);
 }
