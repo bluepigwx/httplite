@@ -106,8 +106,8 @@ static int select_dispatch(server_t* server, struct timeval* tm)
 			{
 				continue;
 			}
-
-			svr_event_active(server, ev);
+			// 放入活动队列
+			svr_event_add(ev, SVR_EV_QUEUE_ACTIVE);
 		}
 	}
 

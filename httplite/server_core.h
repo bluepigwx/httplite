@@ -6,11 +6,15 @@
 typedef int (*event_callback)(int fd, void* arg);
 
 struct svr_event_t {
+	svr_event_t* pre;
+	svr_event_t* next;
+
 	int fd;
 	event_callback event_callback;
 
 	struct server_t* svr;
 };
+
 
 //=============================================================
 // 多路IO复用后端
@@ -47,18 +51,22 @@ struct svr_backend_t {
 	 svr_event_t* event_head;
 	 // 控制是否退出主循环
 	 int loop_break;
+
+	 // 活动队列
+	 svr_event_t* active_evs;
  };
 
 
+#define SVR_EV_QUEUE_WAIT	0x1		// 等待队列
+#define SVR_EV_QUEUE_ACTIVE	0x2		// 事件发生的活动队列
+
 svr_event_t* svr_new_event(server_t* server, int fd, event_callback call_back);
 void svr_delete_event(server_t* server, svr_event_t* ev);
-int svr_event_add(svr_event_t* svr_event);
-int svr_event_del(svr_event_t* svr_event);
+int svr_event_add(svr_event_t* svr_event, int nqueue);
+int svr_event_del(svr_event_t* svr_event, int nqueue);
 
+// 开启server的监听端口
 int svr_new_listener(server_t* server, int port, event_callback call_back);
-
-// 放入活动队列
-int svr_event_active(server_t* server, svr_event_t* ev);
 
 
 server_t* svr_new(svr_backend_t* backend);

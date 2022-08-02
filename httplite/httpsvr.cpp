@@ -83,7 +83,7 @@ static int on_accept(int fd, void* arg)
 	ret = ioctlsocket(client_fd, FIONBIO, &mod);
 
 	// 加入到等待事件队列
-	svr_event_add(new_ev);
+	svr_event_add(new_ev, SVR_EV_QUEUE_WAIT);
 
 	return 0;
 }
