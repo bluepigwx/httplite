@@ -6,13 +6,16 @@
 typedef int (*event_callback)(int fd, void* arg);
 
 struct svr_event_t {
+	// 存储相关
 	svr_event_t* pre;
 	svr_event_t* next;
-
+	// 事件本身
 	int fd;
 	event_callback event_callback;
-
+	// server对象
 	struct server_t* svr;
+	// 所处队列类型
+	int nqueue;
 };
 
 

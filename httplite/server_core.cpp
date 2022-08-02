@@ -3,7 +3,6 @@
 #include <string.h>
 #include <ctype.h>
 #include "select_backend.h"
-#include "buff_stream.h"
 #include "server_core.h"
 
 
@@ -14,9 +13,10 @@ static void svr_process_active(server_t* server)
 	{
 		// 处理事件
 		ev->event_callback(ev->fd, server);
+		// 
 
 		// 取出活动队列
-
+		svr_event_del(ev, SVR_EV_QUEUE_ACTIVE);
 	}
 }
 
@@ -152,12 +152,16 @@ int svr_event_add(svr_event_t* ev, int nqueue)
 			ev->next = headev;
 			headev->pre = ev;
 			ev->svr->event_head = ev;
-
-			return ev->svr->backend->func_add(ev->svr, ev);
+			if (!(ev->nqueue & SVR_EV_QUEUE_WAIT))
+			{
+				ev->nqueue |= SVR_EV_QUEUE_WAIT;
+				return ev->svr->backend->func_add(ev->svr, ev);
+			}
 		}
 		break;
 		case SVR_EV_QUEUE_ACTIVE:
 		{
+			ev->nqueue |= SVR_EV_QUEUE_ACTIVE;
 			headev = ev->svr->active_evs;
 			ev->pre = nullptr;
 			ev->next = headev;
@@ -184,6 +188,7 @@ int svr_event_del(svr_event_t* ev, int nqueue)
 			if (ev == server->event_head)
 			{
 				server->event_head = nullptr;
+				server->backend->func_del(server, ev);
 				return 0;
 			}
 
@@ -196,6 +201,8 @@ int svr_event_del(svr_event_t* ev, int nqueue)
 			{
 				ev->pre->next = ev->next;
 			}
+
+			server->backend->func_del(server, ev);
 		}
 		break;
 		case SVR_EV_QUEUE_ACTIVE:
