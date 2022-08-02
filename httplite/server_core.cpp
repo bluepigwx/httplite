@@ -148,10 +148,18 @@ int svr_event_add(svr_event_t* ev, int nqueue)
 		case SVR_EV_QUEUE_WAIT:
 		{
 			headev = ev->svr->event_head;
-			ev->pre = nullptr;
-			ev->next = headev;
-			headev->pre = ev;
-			ev->svr->event_head = ev;
+			if (headev == nullptr)
+			{
+				ev->svr->event_head = ev;
+			}
+			else
+			{
+				ev->pre = nullptr;
+				ev->next = headev;
+				headev->pre = ev;
+				ev->svr->event_head = ev;
+			}
+			
 			if (!(ev->nqueue & SVR_EV_QUEUE_WAIT))
 			{
 				ev->nqueue |= SVR_EV_QUEUE_WAIT;
