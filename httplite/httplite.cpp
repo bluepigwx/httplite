@@ -8,7 +8,7 @@ int main()
 {
     std::cout << "Hello World!\n";
 
-    int ret = svr_init();
+    int ret = 0;//svr_init();
     if (ret < 0)
     {
         return -1;

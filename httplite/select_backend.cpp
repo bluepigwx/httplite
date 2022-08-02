@@ -3,9 +3,29 @@
 
 
 typedef struct {
-	fd_set fdsets;
-	svr_event_t* events[FD_SETSIZE];
+	int cnt;
+	svr_event_t** events;
+}events_list;
+
+
+typedef struct {
+	fd_set read_fdsets;
+	events_list ev_list;
 }select_data;
+
+
+static svr_event_t* get_event(select_data* data, int fd)
+{
+	events_list* evlist = &data->ev_list;
+	for (int i = 0; i < evlist->cnt; ++i)
+	{
+		if (evlist->events[i]->fd == fd)
+		{
+			return evlist->events[i];
+		}
+	}
+	return nullptr;
+}
 
 
 static void* select_init(server_t* server)
@@ -18,24 +38,47 @@ static void* select_init(server_t* server)
 	}
 
 	select_data* data = (select_data*)calloc(1, sizeof(select_data));
-	FD_ZERO(&data->fdsets);
+	FD_ZERO(&data->read_fdsets);
+
+	data->ev_list.events = (svr_event_t**)calloc(FD_SETSIZE, sizeof(svr_event_t*));
+	data->ev_list.cnt = 0;
 	
 	return (void*)data;
 }
 
-static int select_add(server_t* server, int fd)
+static int select_add(server_t* server, svr_event_t* ev)
 {
 	select_data* data = (select_data*)server->backend_data;
-	FD_SET(fd, &data->fdsets);
+	if (data->ev_list.cnt >= FD_SETSIZE)
+	{
+		return -1;
+	}
+
+	FD_SET(ev->fd, &data->read_fdsets);
+
+	data->ev_list.events[data->ev_list.cnt] = ev;
+	++data->ev_list.cnt;
 
 	return 0;
 }
 
-static void select_del(server_t* server, int fd)
+static void select_del(server_t* server, svr_event_t* ev)
 {
 	select_data* data = (select_data*)server->backend_data;
-	closesocket(fd);
-	FD_CLR(fd, &data->fdsets);
+	closesocket(ev->fd);
+	FD_CLR(ev->fd, &data->read_fdsets);
+
+	events_list* ev_list = &data->ev_list;
+	for (int i = 0; i < ev_list->cnt; ++i)
+	{
+		if (ev_list->events[i]->fd == ev->fd)
+		{
+			ev_list->events[i] = ev_list->events[ev_list->cnt - 1];
+			--ev_list->cnt;
+
+			break;
+		}
+	}
 }
 
 static int select_dispatch(server_t* server, struct timeval* tm)
@@ -45,7 +88,7 @@ static int select_dispatch(server_t* server, struct timeval* tm)
 	fd_set tmp;
 	FD_ZERO(&tmp);
 
-	tmp = data->fdsets;
+	tmp = data->read_fdsets;
 	int ret = select(0, &tmp, NULL, NULL, tm);
 	if (ret < 0)
 	{
@@ -53,12 +96,17 @@ static int select_dispatch(server_t* server, struct timeval* tm)
 		return -1;
 	}
 
-	for (int i = 0; i < tmp.fd_count; ++i)
+	for (int i = 0; i < (int)tmp.fd_count; ++i)
 	{
 		svr_event_t* ev = nullptr;
 		if (FD_ISSET(i, tmp.fd_array))
 		{
-			ev = data->events[i];
+			svr_event_t* ev = get_event(data, (int)tmp.fd_array[i]);
+			if (!ev)
+			{
+				continue;
+			}
+
 			svr_event_active(server, ev);
 		}
 	}
@@ -69,34 +117,22 @@ static int select_dispatch(server_t* server, struct timeval* tm)
 
 static int select_finit(server_t* server)
 {
-	
-}
-
-
-
-void net_close(net_backend_t* backend)
-{
-	if (backend->svrfd > 0)
+	select_data* data = (select_data*)server->backend_data;
+	if (data->ev_list.events)
 	{
-		closesocket(backend->svrfd);
+		free(data->ev_list.events);
 	}
 
-	WSACleanup();
-	FD_ZERO(&backend->fdsets);
+	free(data);
+
+	return 0;
 }
 
 
-void net_close_client(net_backend_t* backend, int client_fd)
-{
-	closesocket(client_fd);
-	FD_CLR(client_fd, &backend->fdsets);
-}
-
-
-static int net_read_package(net_backend_t* backend, int fd)
+int net_read_package(int fd)
 {
 	int len = 0;
-	stream_t* stream = backend->get_stream_cb(fd);
+	stream_t* stream = nullptr;//backend->get_stream_cb(fd);
 	if (stream == NULL)
 	{
 		return -1;
@@ -125,24 +161,25 @@ static int net_read_package(net_backend_t* backend, int fd)
 	if (n == 0)
 	{
 		// gracefully closed
-		backend->close_cb(fd);
+		//backend->close_cb(fd);
 	}
 	else if (n < 0 && ::WSAGetLastError() != WSAEWOULDBLOCK)
 	{
 		// some error
-		backend->err_cb(fd);
+		//backend->err_cb(fd);
 	}
 	else
 	{
 		// process
-		backend->process_cb(fd, stream, overflow);
+		//backend->process_cb(fd, stream, overflow);
 	}
 
 	return 0;
 }
 
 
-int net_loop(net_backend_t* backend)
+/*
+int net_loop()
 {
 	timeval t;
 	t.tv_sec = 0;
@@ -169,7 +206,7 @@ int net_loop(net_backend_t* backend)
 				if (fd == backend->svrfd)
 				{
 					// do accept
-					net_onconnect(backend);
+					//net_onconnect(backend);
 				}
 				else
 				{
@@ -182,6 +219,7 @@ int net_loop(net_backend_t* backend)
 
 	return 0;
 }
+*/
 
 
 int net_send_package(int fd, char* buff, int len)

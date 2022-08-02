@@ -17,9 +17,17 @@ static int on_accept(int fd, void* arg)
 	int addr_len = sizeof(client_addr);
 	int client_fd = (int)accept(fd, (struct sockaddr*)&client_addr, &addr_len);
 
-	int ret = backend->func_add(server, client_fd);
+	svr_event_t* new_ev = svr_new_event(server, client_fd, on_read_callback);
+	if (new_ev == nullptr)
+	{
+		closesocket(client_fd);
+		return -1;
+	}
+
+	int ret = backend->func_add(server, new_ev);
 	if (ret < 0)
 	{
+		svr_delete_event(server, new_ev);
 		closesocket(client_fd);
 		return -1;
 	}
@@ -27,9 +35,8 @@ static int on_accept(int fd, void* arg)
 	unsigned long mod = 1;
 	ret = ioctlsocket(client_fd, FIONBIO, &mod);
 
-	ev = svr_new_event(server, client_fd, on_read_callback);
-
-	svr_event_add(ev);
+	// 加入到等待事件队列
+	svr_event_add(new_ev);
 
 	return 0;
 }
