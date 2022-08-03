@@ -9,14 +9,15 @@
 static void svr_process_active(server_t* server)
 {
 	svr_event_t* ev = server->active_evs;
+
 	while (ev)
 	{
 		// 处理事件
-		ev->event_callback(ev->fd, server);
-		// 
-
+		ev->event_callback(ev->fd, ev);
 		// 取出活动队列
 		svr_event_del(ev, SVR_EV_QUEUE_ACTIVE);
+		// 取下一个元素
+		ev = ev->next;
 	}
 }
 
@@ -33,8 +34,8 @@ int svr_run(server_t* svr)
 		timeval tv;
 		tv.tv_sec = 0;
 		tv.tv_usec = 1000;
+		// 将带有事件的文件句柄放入活动队列
 		svr->backend->func_dispatch(svr, &tv);
-
 		// 处理活动队列
 		svr_process_active(svr);
 	}
@@ -142,44 +143,56 @@ int svr_new_listener(server_t* server, int port, event_callback call_back)
 
 int svr_event_add(svr_event_t* ev, int nqueue)
 {
-	svr_event_t* headev = nullptr;
-	switch (nqueue)
+	server_t* server = ev->svr;
+	svr_backend_t* backend = server->backend;
+
+	// 如果还没有在IO后端监听事件中，先加入进去
+	if ((nqueue == SVR_EV_QUEUE_WAIT) && !(ev->nqueue & SVR_EV_QUEUE_WAIT))
 	{
-		case SVR_EV_QUEUE_WAIT:
+		if (backend->func_add(server, ev) != 0)
 		{
-			headev = ev->svr->event_head;
-			if (headev == nullptr)
-			{
-				ev->svr->event_head = ev;
-			}
-			else
-			{
-				ev->pre = nullptr;
-				ev->next = headev;
-				headev->pre = ev;
-				ev->svr->event_head = ev;
-			}
-			
-			if (!(ev->nqueue & SVR_EV_QUEUE_WAIT))
-			{
-				ev->nqueue |= SVR_EV_QUEUE_WAIT;
-				return ev->svr->backend->func_add(ev->svr, ev);
-			}
-		}
-		break;
-		case SVR_EV_QUEUE_ACTIVE:
-		{
-			ev->nqueue |= SVR_EV_QUEUE_ACTIVE;
-			headev = ev->svr->active_evs;
-			ev->pre = nullptr;
-			ev->next = headev;
-			headev->pre = ev;
-			ev->svr->active_evs = ev;
-		}
-		break;
-		default:
 			return -1;
+		}
+		ev->nqueue |= SVR_EV_QUEUE_WAIT;
 	}
+
+	svr_event_t** headev = nullptr;
+	svr_event_t* pre = nullptr;
+	svr_event_t* next = nullptr;
+	if (nqueue == SVR_EV_QUEUE_WAIT)
+	{
+		headev = &server->event_head;
+		pre = ev->pre;
+		next = ev->next;
+	}
+	else if (nqueue == SVR_EV_QUEUE_ACTIVE)
+	{
+		headev = &server->active_evs;
+		pre = ev->act_pre;
+		next = ev->act_newxt;
+	}
+
+	if (headev == nullptr)
+	{
+		if ((ev->nqueue & SVR_EV_QUEUE_WAIT))
+		{
+			backend->func_del(server, ev);
+		}
+		return -1;
+	}
+
+	if (*headev == nullptr)
+	{
+		*headev = ev;
+		next = pre = nullptr;
+
+		return 0;
+	}
+	// 插入联表头部
+	pre = nullptr;
+	(*headev)->pre = ev;
+	next = (*headev);
+	(*headev) = ev;
 
 	return 0;
 }
@@ -188,52 +201,46 @@ int svr_event_add(svr_event_t* ev, int nqueue)
 int svr_event_del(svr_event_t* ev, int nqueue)
 {
 	server_t* server = ev->svr;
+	svr_backend_t* backend = server->backend;
 
-	switch (nqueue)
+	if (ev->nqueue & SVR_EV_QUEUE_WAIT)
 	{
-		case SVR_EV_QUEUE_WAIT:
-		{
-			if (ev == server->event_head)
-			{
-				server->event_head = nullptr;
-				server->backend->func_del(server, ev);
-				return 0;
-			}
+		// 从后端监听队列中取出
+		backend->func_del(server, ev);
+		ev->nqueue &= ~SVR_EV_QUEUE_WAIT;
+	}
 
-			if (ev->next)
-			{
-				ev->next->pre = ev->pre;
-			}
+	svr_event_t** headev = nullptr;
+	svr_event_t* pre = nullptr;
+	svr_event_t* next = nullptr;
+	if (nqueue == SVR_EV_QUEUE_WAIT)
+	{
+		headev = &server->event_head;
+	}
+	else if (nqueue == SVR_EV_QUEUE_ACTIVE)
+	{
+		headev = &server->active_evs;
+	}
 
-			if (ev->pre)
-			{
-				ev->pre->next = ev->next;
-			}
+	if (headev == nullptr)
+	{
+		return -1;
+	}
 
-			server->backend->func_del(server, ev);
-		}
-		break;
-		case SVR_EV_QUEUE_ACTIVE:
-		{
-			if (ev == server->active_evs)
-			{
-				server->active_evs = nullptr;
-				return 0;
-			}
+	if (ev == *headev)
+	{
+		*headev = nullptr;
+		return 0;
+	}
 
-			if (ev->next)
-			{
-				ev->next->pre = ev->pre;
-			}
+	if (ev->next)
+	{
+		ev->next->pre = ev->pre;
+	}
 
-			if (ev->pre)
-			{
-				ev->pre->next = ev->next;
-			}
-		}
-		break;
-		default:
-			return -1;
+	if (ev->pre)
+	{
+		ev->pre->next = ev->next;
 	}
 
 	return 0;

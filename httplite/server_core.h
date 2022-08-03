@@ -1,20 +1,29 @@
 #pragma once
 
 
+// 事件队列类型，按位与关系，因为一个文件描述符可以同时处于监听状态和活动状态
+#define SVR_EV_QUEUE_WAIT	0x1		// 监听队列
+#define SVR_EV_QUEUE_ACTIVE	0x2		// 事件发生的活动队列
+
+
 //=============================================================
-// 服务器核心结构所使用的消息队列结构
+// 事件回调接口规范
 typedef int (*event_callback)(int fd, void* arg);
 
 struct svr_event_t {
-	// 存储相关
+	// 监听队列中的存储
 	svr_event_t* pre;
 	svr_event_t* next;
-	// 事件本身
+	// 活动队列中的存储
+	svr_event_t* act_pre;
+	svr_event_t* act_newxt;
+
+	// 事件本身与回调处理
 	int fd;
 	event_callback event_callback;
 	// server对象
 	struct server_t* svr;
-	// 所处队列类型
+	// 所处队列类型，参考SVR_EV_QUEUE_*
 	int nqueue;
 };
 
@@ -34,7 +43,7 @@ typedef int (*dispatch)(struct server_t* svr, struct timeval* tm);
 typedef void (*finit)(struct server_t* svr);
 
 struct svr_backend_t {
-	const char* name;
+	const char* name;	// 后端的自定义名字
 
 	init func_init;
 	add func_add;
@@ -47,31 +56,34 @@ struct svr_backend_t {
  //=============================================================
  // 服务器核心结构
  struct server_t {
+	// IO后端对象接口与私有数据
 	 struct svr_backend_t* backend;
 	 void* backend_data;
 
-	 // 文件事件列表
+	 // 文件事件监听队列
 	 svr_event_t* event_head;
+	 // 事件已发生的活动队列
+	 svr_event_t* active_evs;
+
 	 // 控制是否退出主循环
 	 int loop_break;
-
-	 // 活动队列
-	 svr_event_t* active_evs;
  };
 
 
-#define SVR_EV_QUEUE_WAIT	0x1		// 等待队列
-#define SVR_EV_QUEUE_ACTIVE	0x2		// 事件发生的活动队列
-
+// 分配，销毁事件
 svr_event_t* svr_new_event(server_t* server, int fd, event_callback call_back);
 void svr_delete_event(server_t* server, svr_event_t* ev);
+
+// 事件的加入，踢出队列
 int svr_event_add(svr_event_t* svr_event, int nqueue);
 int svr_event_del(svr_event_t* svr_event, int nqueue);
+// 事件的激活
+int svr_event_active(svr_event_t* svr_event);
 
 // 开启server的监听端口
 int svr_new_listener(server_t* server, int port, event_callback call_back);
 
-
+// 服务核心的生存期控制
 server_t* svr_new(svr_backend_t* backend);
 void svr_close(server_t* svr);
 int svr_run(server_t* svr);

@@ -71,16 +71,8 @@ static int on_accept(int fd, void* arg)
 		return -1;
 	}
 
-	int ret = backend->func_add(server, new_ev);
-	if (ret < 0)
-	{
-		svr_delete_event(server, new_ev);
-		closesocket(client_fd);
-		return -1;
-	}
-
 	unsigned long mod = 1;
-	ret = ioctlsocket(client_fd, FIONBIO, &mod);
+	int ret = ioctlsocket(client_fd, FIONBIO, &mod);
 
 	// 加入到等待事件队列
 	svr_event_add(new_ev, SVR_EV_QUEUE_WAIT);
