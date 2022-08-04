@@ -16,7 +16,7 @@ struct svr_event_t {
 	svr_event_t* next;
 	// 活动队列中的存储
 	svr_event_t* act_pre;
-	svr_event_t* act_newxt;
+	svr_event_t* act_next;
 
 	// 事件本身与回调处理
 	int fd;

@@ -17,7 +17,7 @@ static void svr_process_active(server_t* server)
 		// 取出活动队列
 		svr_event_del(ev, SVR_EV_QUEUE_ACTIVE);
 		// 取下一个元素
-		ev = ev->next;
+		ev = ev->act_next;
 	}
 }
 
@@ -153,23 +153,24 @@ int svr_event_add(svr_event_t* ev, int nqueue)
 		{
 			return -1;
 		}
-		ev->nqueue |= SVR_EV_QUEUE_WAIT;
 	}
 
+	ev->nqueue |= nqueue;
+
 	svr_event_t** headev = nullptr;
-	svr_event_t* pre = nullptr;
-	svr_event_t* next = nullptr;
+	svr_event_t** pre = nullptr;
+	svr_event_t** next = nullptr;
 	if (nqueue == SVR_EV_QUEUE_WAIT)
 	{
 		headev = &server->event_head;
-		pre = ev->pre;
-		next = ev->next;
+		pre = &ev->pre;
+		next = &ev->next;
 	}
 	else if (nqueue == SVR_EV_QUEUE_ACTIVE)
 	{
 		headev = &server->active_evs;
-		pre = ev->act_pre;
-		next = ev->act_newxt;
+		pre = &ev->act_pre;
+		next = &ev->act_next;
 	}
 
 	if (headev == nullptr)
@@ -184,14 +185,14 @@ int svr_event_add(svr_event_t* ev, int nqueue)
 	if (*headev == nullptr)
 	{
 		*headev = ev;
-		next = pre = nullptr;
+		*next = *pre = nullptr;
 
 		return 0;
 	}
 	// 插入联表头部
-	pre = nullptr;
+	*pre = nullptr;
 	(*headev)->pre = ev;
-	next = (*headev);
+	*next = (*headev);
 	(*headev) = ev;
 
 	return 0;
@@ -203,23 +204,28 @@ int svr_event_del(svr_event_t* ev, int nqueue)
 	server_t* server = ev->svr;
 	svr_backend_t* backend = server->backend;
 
-	if (ev->nqueue & SVR_EV_QUEUE_WAIT)
+	if (nqueue == SVR_EV_QUEUE_WAIT && ev->nqueue & SVR_EV_QUEUE_WAIT)
 	{
 		// 从后端监听队列中取出
 		backend->func_del(server, ev);
-		ev->nqueue &= ~SVR_EV_QUEUE_WAIT;
 	}
 
+	ev->nqueue &= ~nqueue;
+
 	svr_event_t** headev = nullptr;
-	svr_event_t* pre = nullptr;
-	svr_event_t* next = nullptr;
+	svr_event_t** pre = nullptr;
+	svr_event_t** next = nullptr;
 	if (nqueue == SVR_EV_QUEUE_WAIT)
 	{
 		headev = &server->event_head;
+		pre = &ev->pre;
+		next = &ev->next;
 	}
 	else if (nqueue == SVR_EV_QUEUE_ACTIVE)
 	{
 		headev = &server->active_evs;
+		pre = &ev->act_pre;
+		next = &ev->act_next;
 	}
 
 	if (headev == nullptr)
@@ -230,17 +236,18 @@ int svr_event_del(svr_event_t* ev, int nqueue)
 	if (ev == *headev)
 	{
 		*headev = nullptr;
+		*next = *pre = nullptr;
 		return 0;
 	}
 
-	if (ev->next)
+	if (*next)
 	{
-		ev->next->pre = ev->pre;
+		(*next)->pre = *pre;
 	}
 
-	if (ev->pre)
+	if (*pre)
 	{
-		ev->pre->next = ev->next;
+		(*pre)->next = *next;
 	}
 
 	return 0;

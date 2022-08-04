@@ -28,6 +28,12 @@ static svr_event_t* get_event(select_data* data, int fd)
 }
 
 
+static void fd_set_copy(struct fd_set* out, const struct fd_set* in)
+{
+	out->fd_count = in->fd_count;
+	memcpy(out->fd_array, in->fd_array, in->fd_count * (sizeof(SOCKET)));
+}
+
 static void* select_init(server_t* server)
 {
 	WSADATA wsaData;
@@ -88,7 +94,8 @@ static int select_dispatch(server_t* server, struct timeval* tm)
 	fd_set tmp;
 	FD_ZERO(&tmp);
 
-	tmp = data->read_fdsets;
+	fd_set_copy(&tmp, &data->read_fdsets);
+
 	int ret = select(0, &tmp, NULL, NULL, tm);
 	if (ret < 0)
 	{
@@ -98,17 +105,13 @@ static int select_dispatch(server_t* server, struct timeval* tm)
 
 	for (int i = 0; i < (int)tmp.fd_count; ++i)
 	{
-		svr_event_t* ev = nullptr;
-		if (FD_ISSET(i, tmp.fd_array))
+		svr_event_t* ev = get_event(data, (int)tmp.fd_array[i]);
+		if (!ev)
 		{
-			svr_event_t* ev = get_event(data, (int)tmp.fd_array[i]);
-			if (!ev)
-			{
-				continue;
-			}
-			// 放入活动队列
-			svr_event_add(ev, SVR_EV_QUEUE_ACTIVE);
+			continue;
 		}
+		// 放入活动队列
+		svr_event_add(ev, SVR_EV_QUEUE_ACTIVE);
 	}
 
 	return 0;
