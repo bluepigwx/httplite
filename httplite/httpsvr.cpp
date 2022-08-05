@@ -3,8 +3,6 @@
 #include "server_core.h"
 #include "select_backend.h"
 
-server_t* server_core = nullptr;
-
 
 static int on_read_callback(int fd, void* arg)
 {
@@ -79,6 +77,8 @@ static int on_accept(int fd, void* arg)
 }
 
 
+server_t* server_core = nullptr;
+
 int httpsvr_start(int port)
 {
 	svr_backend_t* bk = get_select_backend();
@@ -92,12 +92,10 @@ int httpsvr_start(int port)
 	return ret;
 }
 
-
 void httpsvr_stop()
 {
 	svr_close(server_core);
 }
-
 
 int httpsvr_run()
 {
