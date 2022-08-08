@@ -140,13 +140,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="buff.cpp" />
     <ClCompile Include="httplite.cpp" />
     <ClCompile Include="httpsvr.cpp" />
     <ClCompile Include="select_backend.cpp" />
     <ClCompile Include="server_core.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="buff_stream.h" />
+    <ClInclude Include="buff.h" />
     <ClInclude Include="httpsvr.h" />
     <ClInclude Include="select_backend.h" />
     <ClInclude Include="server_core.h" />

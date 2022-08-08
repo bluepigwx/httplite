@@ -3,7 +3,7 @@
 #include "server_core.h"
 #include "select_backend.h"
 
-
+/*
 static int on_read_callback(int fd, void* arg)
 {
 	int len = 0;
@@ -47,6 +47,11 @@ static int on_read_callback(int fd, void* arg)
 		//backend->process_cb(fd, stream, overflow);
 	}
 
+	return 0;
+}
+*/
+static int on_read_callback(int fd, void* arg)
+{
 	return 0;
 }
 

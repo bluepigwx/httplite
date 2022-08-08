@@ -27,12 +27,12 @@
     <ClCompile Include="httpsvr.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="buff.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="select_backend.h">
-      <Filter>Source Files</Filter>
-    </ClInclude>
-    <ClInclude Include="buff_stream.h">
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="server_internal.h">
@@ -42,6 +42,9 @@
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="httpsvr.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="buff.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
