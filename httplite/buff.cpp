@@ -35,13 +35,27 @@ void buff_delete(szbuff* buff)
 	{
 		free(buff->org);
 	}
-
 	free(buff);
 }
 
-// 将buff扩展到maxlen
+// 将buff可用内存扩展到maxlen
 int buff_expand(szbuff* buff, int maxlen)
 {
+	// 1. off开始到total所指的内存末尾空余内存还能装下maxlen
+	int used = buff->align + buff->off;
+	if (buff->total - used >= maxlen)
+	{
+		return 0;
+	}
+	// 2. 已读出内存+上述1.的空余内存还能装下maxlen，也就是首尾两端的空余内存能装下maxlen，那么融合一下
+	if (buff->total - buff->off > maxlen)
+	{
+		// 重新对齐
+		buff_realign(buff);
+		return 0;
+	}
+	// 3. 首尾两端内存之和已经无法装下maxlen，需要重新分配内存
+
 	return 0;
 }
 
@@ -63,6 +77,14 @@ int buff_drain(szbuff* buff, int drainlen)
 	buff->off -= len;
 
 	return len;
+}
+
+// 将已写入内存重新归位到org位置
+void buff_realign(szbuff* buff)
+{
+	memmove(buff->org, buff->buff, buff->off);
+	buff->buff = buff->org;
+	buff->align = 0;
 }
 
 // 从buff中读取len长度的数据到data中并前移数据指针
