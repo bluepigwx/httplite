@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <WinSock2.h>
 #include "buff.h"
 
 
@@ -50,11 +51,27 @@ int buff_expand(szbuff* buff, int maxlen)
 	// 2. 已读出内存+上述1.的空余内存还能装下maxlen，也就是首尾两端的空余内存能装下maxlen，那么融合一下
 	if (buff->total - buff->off > maxlen)
 	{
-		// 重新对齐
+		// 重新归位
 		buff_realign(buff);
 		return 0;
 	}
 	// 3. 首尾两端内存之和已经无法装下maxlen，需要重新分配内存
+	int len = buff->total;
+	int need = buff->off + maxlen;	// 自己已经写入+本次调用需要使用的量为当前需求总量
+	while (len < need)
+	{	
+		// 一次扩容两倍
+		len <<= 1;
+	}
+
+	// realloc之前一定要重新归位一下，否则从org到align这块内存会泄漏
+	if (buff->org != buff->buff)
+	{
+		buff_realign(buff);
+	}
+	void* newbuff = realloc(buff->buff, len);
+	buff->org = buff->buff = (char*)newbuff;
+	buff->total = len;
 
 	return 0;
 }
@@ -123,8 +140,30 @@ int buff_get_data(szbuff* buff, char* outdata, int len)
 	return getlen;
 }
 
-// 将一个fd的内容读入到buff中
+// 将fd的可读内容写入到buff中
 int buff_read_fd(szbuff* buff, int fd, int len)
 {
-	return 0;
+	int used = buff->align + buff->off;
+	int maxlen = buff->total = used;
+	if (len > maxlen)
+	{
+		len = maxlen;
+	}
+
+	char* begin = buff->buff + buff->off;
+	int n = recv(fd, begin, len, 0);
+	
+	if (n == -1) 
+	{
+		return -1;
+	}
+
+	if (n == 0)
+	{
+		return 0;
+	}
+
+	buff->off += n;
+
+	return n;
 }
