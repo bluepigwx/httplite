@@ -151,7 +151,6 @@
     <ClInclude Include="httpsvr.h" />
     <ClInclude Include="select_backend.h" />
     <ClInclude Include="server_core.h" />
-    <ClInclude Include="server_internal.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
