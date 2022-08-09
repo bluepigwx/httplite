@@ -21,6 +21,8 @@ struct svr_event_t {
 	// 事件本身与回调处理
 	int fd;
 	event_callback event_callback;
+	// 回调函数的参数
+	void* arg;
 	// server对象
 	struct server_t* svr;
 	// 所处队列类型，参考SVR_EV_QUEUE_*
@@ -71,7 +73,7 @@ struct svr_backend_t {
 
 
 // 分配，销毁事件
-svr_event_t* svr_new_event(server_t* server, int fd, event_callback call_back);
+svr_event_t* svr_new_event(server_t* server, int fd, event_callback call_back, void* arg);
 void svr_delete_event(server_t* server, svr_event_t* ev);
 
 // 事件的加入，踢出队列
@@ -81,7 +83,7 @@ int svr_event_del(svr_event_t* svr_event, int nqueue);
 int svr_event_active(svr_event_t* svr_event);
 
 // 开启server的监听端口
-int svr_new_listener(server_t* server, int port, event_callback call_back);
+int svr_new_listener(server_t* server, int port, event_callback call_back, void* arg);
 
 // 服务核心的生存期控制
 server_t* svr_new(svr_backend_t* backend);

@@ -13,7 +13,7 @@ static void svr_process_active(server_t* server)
 	while (ev)
 	{
 		// 处理事件
-		ev->event_callback(ev->fd, ev);
+		ev->event_callback(ev->fd, ev->arg);
 		// 取出活动队列
 		svr_event_del(ev, SVR_EV_QUEUE_ACTIVE);
 		// 取下一个元素
@@ -47,6 +47,10 @@ int svr_run(server_t* svr)
 server_t* svr_new(svr_backend_t* backend)
 {
 	server_t* svr = (server_t*)calloc(1, sizeof(server_t));
+	if (nullptr == svr)
+	{
+		return nullptr;
+	}
 	svr->backend = backend;
 	svr->backend_data = svr->backend->func_init(svr);
 
@@ -61,7 +65,7 @@ void svr_close(server_t* svr)
 }
 
 
-svr_event_t* svr_new_event(server_t* server, int fd, event_callback call_back)
+svr_event_t* svr_new_event(server_t* server, int fd, event_callback call_back, void* arg)
 {
 	svr_event_t* ev = (svr_event_t*)calloc(1, sizeof(svr_event_t));
 	if (ev == nullptr)
@@ -72,6 +76,7 @@ svr_event_t* svr_new_event(server_t* server, int fd, event_callback call_back)
 	ev->svr = server;
 	ev->fd = fd;
 	ev->event_callback = call_back;
+	ev->arg = arg;
 
 	return ev;
 }
@@ -83,7 +88,7 @@ void svr_delete_event(server_t* server, svr_event_t* ev)
 }
 
 
-int svr_new_listener(server_t* server, int port, event_callback call_back)
+int svr_new_listener(server_t* server, int port, event_callback call_back, void* arg)
 {
 	int svrfd = (int)socket(AF_INET, SOCK_STREAM, 0);
 	if (svrfd < 0)
@@ -113,7 +118,7 @@ int svr_new_listener(server_t* server, int port, event_callback call_back)
 			break;
 		}
 
-		ev = svr_new_event(server, svrfd, call_back);
+		ev = svr_new_event(server, svrfd, call_back, arg);
 		if (ev == nullptr)
 		{
 			break;
