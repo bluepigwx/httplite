@@ -145,12 +145,14 @@
     <ClCompile Include="httpsvr.cpp" />
     <ClCompile Include="select_backend.cpp" />
     <ClCompile Include="server_core.cpp" />
+    <ClCompile Include="test.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="buff.h" />
     <ClInclude Include="httpsvr.h" />
     <ClInclude Include="select_backend.h" />
     <ClInclude Include="server_core.h" />
+    <ClInclude Include="test.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

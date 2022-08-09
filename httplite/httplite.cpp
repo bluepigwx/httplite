@@ -3,16 +3,19 @@
 
 #include <iostream>
 #include "httpsvr.h"
+#include "test.h"
 
 int main()
 {
     std::cout << "Hello World!\n";
 
-    httpsvr_start(8899);
+    test_start();
 
-    httpsvr_run();
+    //httpsvr_start(8899);
 
-    httpsvr_stop();
+    //httpsvr_run();
+
+    //httpsvr_stop();
 }
 
 // Run program: Ctrl + F5 or Debug > Start Without Debugging menu

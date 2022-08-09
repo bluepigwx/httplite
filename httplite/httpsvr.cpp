@@ -3,53 +3,7 @@
 #include "server_core.h"
 #include "select_backend.h"
 
-/*
-static int on_read_callback(int fd, void* arg)
-{
-	int len = 0;
-	stream_t stream;
-	memset(&stream, 0, sizeof(stream_t));
-	stream.cap = sizeof(stream.buff);
 
-	int n = 0;
-	bool overflow = false;
-	do
-	{
-		if (stream.len >= stream.cap)
-		{
-			overflow = true;
-			break;
-		}
-
-		char* begin = stream.buff + stream.len;
-		int size = stream.cap - stream.len;
-		n = recv(fd, begin, size, 0);
-		if (n > 0)
-		{
-			stream.len += n;
-		}
-
-	} while (n > 0 && overflow == false);
-
-	if (n == 0)
-	{
-		// gracefully closed
-		//backend->close_cb(fd);
-	}
-	else if (n < 0 && ::WSAGetLastError() != WSAEWOULDBLOCK)
-	{
-		// some error
-		//backend->err_cb(fd);
-	}
-	else
-	{
-		// process
-		//backend->process_cb(fd, stream, overflow);
-	}
-
-	return 0;
-}
-*/
 static int on_read_callback(int fd, void* arg)
 {
 	return 0;

@@ -30,6 +30,9 @@
     <ClCompile Include="buff.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="test.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="select_backend.h">
@@ -42,6 +45,9 @@
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="buff.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="test.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>
