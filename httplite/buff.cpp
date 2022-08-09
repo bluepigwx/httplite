@@ -4,7 +4,7 @@
 #include "buff.h"
 
 
-// 默认分配buff长队
+// 默认分配buff长度
 #define DEFAULT_BUFF_LEN 1024
 
 
@@ -80,8 +80,8 @@ int buff_expand(szbuff* buff, int maxlen)
 int buff_drain(szbuff* buff, int drainlen)
 {	
 	int len = drainlen;
-	// 一把读完了，直接归零，相当于这个buff可用内存已经耗尽，下次无论如何也要expand了
-	if (drainlen > buff->off)
+	// 一把读完了，直接归零，下次可以直接拿来用了
+	if (drainlen >= buff->off)
 	{
 		len = buff->off;
 		buff->buff = buff->org;
@@ -105,7 +105,7 @@ void buff_realign(szbuff* buff)
 }
 
 // 从buff中读取len长度的数据到data中并前移数据指针
-int buff_add_data(szbuff* buff, char* indata, int len)
+int buff_add_data(szbuff* buff, const char* indata, int len)
 {
 	// 计算用掉了多少
 	int used = buff->align + buff->off;

@@ -38,7 +38,7 @@ int buff_drain(szbuff* buff, int drainlen);
 // 将已写入内存重新归位到org位置
 void buff_realign(szbuff* buff);
 // 将data数据放入到buff中
-int buff_add_data(szbuff* buff, char* indata, int len);
+int buff_add_data(szbuff* buff, const char* indata, int len);
 // 将data长度的数据从buff中取出
 int buff_get_data(szbuff* buff, char* outdata, int len);
 // 将一个fd的内容读入到buff中
