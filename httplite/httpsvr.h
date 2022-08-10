@@ -1,5 +1,6 @@
 #pragma once
 
+#include "queue.h"
 
 //=============================================================
 // 链接对象上的请求对象
@@ -7,6 +8,8 @@ struct http_request {
 	// 内存管理
 	http_request* pre;
 	http_request* next;
+
+	DLIST_ENTRY(http_request) reqhead;
 	// 请求的路径
 	char* url;
 	// 所依附的连接对象

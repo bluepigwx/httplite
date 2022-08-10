@@ -150,6 +150,7 @@
   <ItemGroup>
     <ClInclude Include="buff.h" />
     <ClInclude Include="httpsvr.h" />
+    <ClInclude Include="queue.h" />
     <ClInclude Include="select_backend.h" />
     <ClInclude Include="server_core.h" />
     <ClInclude Include="test.h" />

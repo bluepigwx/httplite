@@ -144,7 +144,7 @@ int buff_get_data(szbuff* buff, char* outdata, int len)
 int buff_read_fd(szbuff* buff, int fd, int len)
 {
 	int used = buff->align + buff->off;
-	int maxlen = buff->total = used;
+	int maxlen = buff->total - used;
 	if (len > maxlen)
 	{
 		len = maxlen;
