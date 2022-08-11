@@ -43,3 +43,16 @@ do {			\
 	for ((var) = (head)->first;	\
 		(var) != nullptr;		\
 		(var) = (var)->name##next)
+
+
+
+//=============================================================
+// 先进先出队列
+
+// 定义队列
+#define QUEUE_HEAD(type)	\
+struct {	\
+	type* first;	\
+}
+
+#define QUEUE_ENTRY(type)
