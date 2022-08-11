@@ -17,7 +17,7 @@
 * align：从org地址开始算起，实际排出的内存偏移
 */
 
-struct szbuff{
+struct szbuff {
 	// 内存维护
 	char* org;
 	char* buff;

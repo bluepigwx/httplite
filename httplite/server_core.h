@@ -1,5 +1,6 @@
 #pragma once
 
+#include "queue.h"
 
 // 事件队列类型，按位与关系，因为一个文件描述符可以同时处于监听状态和活动状态
 #define SVR_EV_QUEUE_WAIT	0x1		// 监听队列
@@ -12,12 +13,9 @@ typedef int (*event_callback)(int fd, void* arg);
 
 struct svr_event_t {
 	// 监听队列中的存储
-	svr_event_t* pre;
-	svr_event_t* next;
+	DLIST_ENTRY(svr_event_t, entry);
 	// 活动队列中的存储
-	svr_event_t* act_pre;
-	svr_event_t* act_next;
-
+	DLIST_ENTRY(svr_event_t, actentry);
 	// 事件本身与回调处理
 	int fd;
 	event_callback event_callback;
@@ -61,15 +59,13 @@ struct svr_backend_t {
 	// IO后端对象接口与私有数据
 	 struct svr_backend_t* backend;
 	 void* backend_data;
-
 	 // 文件事件监听队列
-	 svr_event_t* event_head;
+	 DLIST_HEAD(svr_event_t) ev_head;
 	 // 事件已发生的活动队列
-	 svr_event_t* active_evs;
-
+	 DLIST_HEAD(svr_event_t) act_head;
 	 // 控制是否退出主循环
 	 int loop_break;
- };
+};
 
 
 // 分配，销毁事件

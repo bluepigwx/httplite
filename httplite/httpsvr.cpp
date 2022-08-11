@@ -3,13 +3,25 @@
 #include "server_core.h"
 #include "select_backend.h"
 #include "buff.h"
+#include "queue.h"
+
+
+static http_request* httpsvr_new_request(http_connection* conn);
+static void httpsvr_free_request(http_request* req);
+
+static http_connection* httsvr_new_connection(http_server* httpsvr, int fd);
+static void httpsvr_free_connection(http_server* httpsvr, http_connection* conn);
 
 
 
 // 主动关闭连接
-static void httpsvr_close_connection(http_connection* conn)
+static void httpsvr_close_connection(http_connection* conn, int reason)
 {
-
+	http_server* httpsvr = conn->httpsvr;
+	// 关闭连接
+	closesocket(conn->fd);
+	// 清理内存
+	httpsvr_free_connection(httpsvr, conn);
 }
 
 
@@ -26,11 +38,14 @@ static int httpsvr_read_callback(int fd, void* arg)
 		if (errno != EINTR && errno != EAGAIN)
 		{
 			// 报错了
+			httpsvr_close_connection(conn, 0);
+			return -1;
 		}
 	}
 	else if (ret == 0)
 	{
 		// 断线了
+		httpsvr_close_connection(conn, 0);
 	}
 	// else 正常收包
 
@@ -57,25 +72,15 @@ static void httpsvr_free_connection(http_server* httpsvr, http_connection* conn)
 		buff_delete(conn->inputbuffer);
 		conn->inputbuffer = nullptr;
 	}
-	// 释放链表
-	if (httpsvr->conn_head == conn)
+	// 释放绑定的request
+	http_request* req = DLIST_GET_FIRST(&conn->reqhead);
+	while (req)
 	{
-		httpsvr->conn_head = nullptr;
+		httpsvr_free_request(req);
+		req = DLIST_GET_FIRST(&conn->reqhead);
 	}
-	else
-	{
-		if (conn->pre)
-		{
-			conn->pre->next = conn->next;
-		}
-
-		if (conn->next)
-		{
-			conn->next->pre = conn->pre;
-		}
-
-		conn->next = conn->pre = nullptr;
-	}
+	// 释放自身链表
+	DLIST_REMOVE(conn, entry);
 	// 释放连接内存本身
 	free(conn);	
 }
@@ -103,19 +108,7 @@ static http_connection* httsvr_new_connection(http_server* httpsvr, int fd)
 	conn->fd = fd;
 	conn->httpsvr = httpsvr;
 	// 加入链表
-	http_connection** head = &httpsvr->conn_head;
-	if ((*head) == nullptr)
-	{
-		(*head) = conn;
-	}
-	else
-	{
-		// 插入到链表头部
-		conn->next = *head;
-		conn->pre = nullptr;
-		(*head)->pre = conn;
-		(*head) = conn;
-	}
+	DLIST_INSERT_HEAD(&httpsvr->conn_head, conn, entry);
 
 	return conn;
 }
@@ -123,24 +116,8 @@ static http_connection* httsvr_new_connection(http_server* httpsvr, int fd)
 
 static void httpsvr_free_request(http_request* req)
 {
-	// 从conn链表中取出
-	http_request** reqhead = &req->conn->reqhead;
-	if ((*reqhead) == req)
-	{
-		(*reqhead) = nullptr;
-	}
-	else
-	{
-		if (req->next)
-		{
-			req->next->pre = req->pre;
-		}
-
-		if (req->pre)
-		{
-			req->pre->next = req->next;
-		}
-	}
+	// 从自身链表中取出
+	DLIST_REMOVE(req, entry);
 	// 释放字符串内存
 	if (req->url)
 	{
@@ -160,24 +137,10 @@ static http_request* httpsvr_new_request(http_connection* conn)
 	}
 
 	req->conn = conn;
-
 	// 挂载上即可
-	http_request** reqhead = &conn->reqhead;
-	if ((*reqhead) == nullptr)
-	{
-		(*reqhead) = req;
-		(*reqhead)->next = (*reqhead)->pre = nullptr;
-	}
-	else
-	{
-		// 插入到链表头部
-		req->next = (*reqhead);
-		req->pre = nullptr;
-		(*reqhead)->pre = req;
-		(*reqhead) = req;
-	}
+	DLIST_INSERT_HEAD(&conn->reqhead, req, entry);
 
-	return nullptr;
+	return req;
 }
 
 
@@ -275,21 +238,8 @@ int httpsvr_register_request(http_server* httpsvr, char* url, request_handle cb,
 	handle->arg = arg;
 	handle->cb = cb;
 	handle->url = _strdup(url);
-
-	http_request_handle** head = &httpsvr->requect_cb_head;
-	if (*head == nullptr)
-	{
-		*head = handle;
-		(*head)->next = (*head)->pre = nullptr;
-	}
-	else
-	{
-		// 插入到链表头部
-		handle->next = *head;
-		handle->pre = nullptr;
-		(*head)->pre = handle;
-		(*head) = handle;
-	}
+	// 挂载上回调链表
+	DLIST_INSERT_HEAD(&httpsvr->req_cb_head, handle, entry);
 
 	return 0;
 }

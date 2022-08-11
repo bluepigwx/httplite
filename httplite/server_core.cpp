@@ -8,16 +8,13 @@
 
 static void svr_process_active(server_t* server)
 {
-	svr_event_t* ev = server->active_evs;
-
-	while (ev)
+	svr_event_t* ev = nullptr;
+	DLIST_FOREEACH(ev, &server->act_head, actentry)
 	{
 		// 处理事件
 		ev->event_callback(ev->fd, ev->arg);
 		// 取出活动队列
 		svr_event_del(ev, SVR_EV_QUEUE_ACTIVE);
-		// 取下一个元素
-		ev = ev->act_next;
 	}
 }
 
@@ -150,7 +147,6 @@ int svr_event_add(svr_event_t* ev, int nqueue)
 {
 	server_t* server = ev->svr;
 	svr_backend_t* backend = server->backend;
-
 	// 如果还没有在IO后端监听事件中，先加入进去
 	if ((nqueue == SVR_EV_QUEUE_WAIT) && !(ev->nqueue & SVR_EV_QUEUE_WAIT))
 	{
@@ -161,44 +157,15 @@ int svr_event_add(svr_event_t* ev, int nqueue)
 	}
 
 	ev->nqueue |= nqueue;
-
-	svr_event_t** headev = nullptr;
-	svr_event_t** pre = nullptr;
-	svr_event_t** next = nullptr;
+	// 插入到管理列表中
 	if (nqueue == SVR_EV_QUEUE_WAIT)
 	{
-		headev = &server->event_head;
-		pre = &ev->pre;
-		next = &ev->next;
+		DLIST_INSERT_HEAD(&server->ev_head, ev, entry);
 	}
 	else if (nqueue == SVR_EV_QUEUE_ACTIVE)
 	{
-		headev = &server->active_evs;
-		pre = &ev->act_pre;
-		next = &ev->act_next;
+		DLIST_INSERT_HEAD(&server->act_head, ev, actentry);
 	}
-
-	if (headev == nullptr)
-	{
-		if ((ev->nqueue & SVR_EV_QUEUE_WAIT))
-		{
-			backend->func_del(server, ev);
-		}
-		return -1;
-	}
-
-	if (*headev == nullptr)
-	{
-		*headev = ev;
-		*next = *pre = nullptr;
-
-		return 0;
-	}
-	// 插入联表头部
-	*pre = nullptr;
-	(*headev)->pre = ev;
-	*next = (*headev);
-	(*headev) = ev;
 
 	return 0;
 }
@@ -217,42 +184,13 @@ int svr_event_del(svr_event_t* ev, int nqueue)
 
 	ev->nqueue &= ~nqueue;
 
-	svr_event_t** headev = nullptr;
-	svr_event_t** pre = nullptr;
-	svr_event_t** next = nullptr;
 	if (nqueue == SVR_EV_QUEUE_WAIT)
 	{
-		headev = &server->event_head;
-		pre = &ev->pre;
-		next = &ev->next;
+		DLIST_REMOVE(ev, entry);
 	}
 	else if (nqueue == SVR_EV_QUEUE_ACTIVE)
 	{
-		headev = &server->active_evs;
-		pre = &ev->act_pre;
-		next = &ev->act_next;
-	}
-
-	if (headev == nullptr)
-	{
-		return -1;
-	}
-
-	if (ev == *headev)
-	{
-		*headev = nullptr;
-		*next = *pre = nullptr;
-		return 0;
-	}
-
-	if (*next)
-	{
-		(*next)->pre = *pre;
-	}
-
-	if (*pre)
-	{
-		(*pre)->next = *next;
+		DLIST_REMOVE(ev, actentry);
 	}
 
 	return 0;
