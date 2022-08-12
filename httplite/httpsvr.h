@@ -2,11 +2,23 @@
 
 #include "queue.h"
 
+/*
+* httpsvr->conn_head
+*				|
+*				conn<-->conn<-->conn....
+*				|
+*				request->request->request....
+* 服务器是一个网络连接的集合，这里使用双向链表数据结构进行管理
+* 而连接则是一个请求request的队列，这里使用FIFO数据结构进行管理
+* 每个request则是一个收取tcp数据流的状态机
+*/
+
+
 //=============================================================
 // 链接对象上的请求对象
 struct http_request {
 	// 内存管理
-	DLIST_ENTRY(http_request, entry);
+	QUEUE_ENTRY(http_request, qentry);
 	// 请求的路径
 	char* url;
 	// 所依附的连接对象
@@ -25,8 +37,8 @@ struct http_connection {
 	struct svr_event_t* ev;
 	// 读缓冲
 	struct szbuff* inputbuffer;
-	// 在此连接上的所有请求列表
-	DLIST_HEAD(http_request) reqhead;
+	// 在此连接上的所有请求队列
+	QUEUE_HEAD(http_request) reqhead;
 
 	struct http_server* httpsvr;
 };

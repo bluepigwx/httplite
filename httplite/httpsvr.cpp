@@ -73,11 +73,13 @@ static void httpsvr_free_connection(http_server* httpsvr, http_connection* conn)
 		conn->inputbuffer = nullptr;
 	}
 	// 释放绑定的request
-	http_request* req = DLIST_GET_FIRST(&conn->reqhead);
+	http_request* req = QUEUE_GET_FIRST(&conn->reqhead);
 	while (req)
 	{
 		httpsvr_free_request(req);
-		req = DLIST_GET_FIRST(&conn->reqhead);
+
+		QUEUE_POP(&conn->reqhead, qentry);
+		req = QUEUE_GET_FIRST(&conn->reqhead);
 	}
 	// 释放自身链表
 	DLIST_REMOVE(conn, entry);
@@ -107,7 +109,9 @@ static http_connection* httsvr_new_connection(http_server* httpsvr, int fd)
 
 	conn->fd = fd;
 	conn->httpsvr = httpsvr;
-	// 加入链表
+	// 初始化请求队列
+	QUEUE_INIT(&conn->reqhead);
+	// 加入链接管理器
 	DLIST_INSERT_HEAD(&httpsvr->conn_head, conn, entry);
 
 	return conn;
@@ -116,8 +120,6 @@ static http_connection* httsvr_new_connection(http_server* httpsvr, int fd)
 
 static void httpsvr_free_request(http_request* req)
 {
-	// 从自身链表中取出
-	DLIST_REMOVE(req, entry);
 	// 释放字符串内存
 	if (req->url)
 	{
@@ -138,7 +140,7 @@ static http_request* httpsvr_new_request(http_connection* conn)
 
 	req->conn = conn;
 	// 挂载上即可
-	DLIST_INSERT_HEAD(&conn->reqhead, req, entry);
+	QUEUE_PUSH(&conn->reqhead, req, qentry);
 
 	return req;
 }
