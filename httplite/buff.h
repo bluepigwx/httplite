@@ -44,3 +44,6 @@ int buff_get_data(szbuff* buff, char* outdata, int len);
 // 将一个fd的内容读入到buff中
 int buff_read_fd(szbuff* buff, int fd, int len);
 
+// 读取一行以\r或者\n或者\n\r或者\r\n结尾的字符，并在结尾多添加一个\0字符
+int buff_read_line(szbuff*, char* dest, int len);
+

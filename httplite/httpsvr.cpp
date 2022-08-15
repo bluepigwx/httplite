@@ -16,7 +16,7 @@ static void httpsvr_free_connection(http_server* httpsvr, http_connection* conn)
 
 
 // 主动关闭连接
-static void httpsvr_close_connection(http_connection* conn, int reason)
+void httpsvr_close_connection(http_connection* conn, int reason)
 {
 	http_server* httpsvr = conn->httpsvr;
 	// 关闭连接
@@ -68,7 +68,6 @@ static int httpsvr_read_callback(int fd, void* arg)
 		case HTTP_STAGE_READING_HEADER:
 			http_stage_header(conn, req);
 			break;
-		break;
 		case HTTP_STAGE_READING_BODY:
 			http_stage_body(conn, req);
 			break;

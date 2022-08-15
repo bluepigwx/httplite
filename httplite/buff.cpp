@@ -167,3 +167,53 @@ int buff_read_fd(szbuff* buff, int fd, int len)
 
 	return n;
 }
+
+// 读取一行以\r或者\n或者\n\r或者\r\n结尾的字符，并在结尾多添加一个\0字符
+int buff_read_line(szbuff* buff, char* dest, int len)
+{
+	if (len <= 0)
+	{
+		return -1;
+	}
+
+	int index = 0;
+	for (index = 0; index < buff->off; ++index)
+	{
+		char ch = buff->buff[index];
+		if (index < len)
+		{
+			dest[index] = ch;
+		}
+		if (ch == '\n' || ch == '\r')
+		{
+			break;
+		}
+	}
+	// 整个buff里面没有换行符
+	if (index == buff->off)
+	{
+		return 0;
+	}
+	// 外部buffer不够存放
+	if (index >= len)
+	{
+		return -1;
+	}
+
+	dest[index + 1] = 0; // 字符串结尾
+
+	if (index < len - 1)
+	{
+		char rch = buff->buff[index];
+		char nch = buff->buff[index + 1];
+
+		if ((rch == '\n' || nch == '\r') && (rch != nch))
+		{
+			index++;
+		}
+	}
+	// 把已经读出的内存标记为已清理
+	buff_drain(buff, index);
+
+	return index;
+}

@@ -17,9 +17,9 @@
 //=============================================================
 // 链接对象上的请求对象
 
-// 处理方法
-#define HTTP_METHOD_REQUEST 1
-#define HTTP_METHOD_POST	2
+// 请求方法
+#define HTTP_METHOD_REQ_GET		1
+#define HTTP_METHOD_REQ_POST	2
 
 struct http_request {
 	// 内存管理
@@ -96,3 +96,5 @@ int httpsvr_run(http_server* httpsvr);
 
 // 注册url处理接口
 int httpsvr_register_request(http_server* httpsvr, char* url, request_handle cb, void* arg);
+// 关闭连接
+void httpsvr_close_connection(http_connection* conn, int reason);
