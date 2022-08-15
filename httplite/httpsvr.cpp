@@ -46,10 +46,28 @@ static int httpsvr_read_callback(int fd, void* arg)
 	{
 		// 断线了
 		httpsvr_close_connection(conn, 0);
+		return 0;
 	}
 	// else 正常收包
 
 	// 开始处理request状态机
+	http_request* req = QUEUE_GET_FIRST(&conn->reqhead);
+	if (req == nullptr)
+	{
+		// 错误
+		httpsvr_close_connection(conn, 0);
+		return -1;
+	}
+
+	switch (conn->stage)
+	{
+		case HTTP_STAGE_READING_PREPARE:
+		break;
+		case HTTP_STAGE_READING_HEADER:
+		break;
+		default:
+			;
+	}
 
 	return 0;
 }
@@ -109,6 +127,7 @@ static http_connection* httsvr_new_connection(http_server* httpsvr, int fd)
 
 	conn->fd = fd;
 	conn->httpsvr = httpsvr;
+	conn->stage = HTTP_STAGE_READING_PREPARE;
 	// 初始化请求队列
 	QUEUE_INIT(&conn->reqhead);
 	// 加入链接管理器

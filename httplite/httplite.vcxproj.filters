@@ -33,6 +33,9 @@
     <ClCompile Include="test.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="httpstage.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="select_backend.h">
@@ -51,6 +54,9 @@
       <Filter>Source Files</Filter>
     </ClInclude>
     <ClInclude Include="queue.h">
+      <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="httpstage.h">
       <Filter>Source Files</Filter>
     </ClInclude>
   </ItemGroup>

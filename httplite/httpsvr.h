@@ -16,6 +16,11 @@
 
 //=============================================================
 // 链接对象上的请求对象
+
+// 处理方法
+#define HTTP_METHOD_REQUEST 1
+#define HTTP_METHOD_POST	2
+
 struct http_request {
 	// 内存管理
 	QUEUE_ENTRY(http_request, qentry);
@@ -23,11 +28,18 @@ struct http_request {
 	char* url;
 	// 所依附的连接对象
 	struct http_connection* conn;
+	// 处理方法，参见HTTP_METHOD_**
+	unsigned char method;
 };
 
 
 //=============================================================
 // http服务器的连接对象
+
+// 处理阶段
+#define HTTP_STAGE_READING_PREPARE	1	// 数据准备阶段
+#define HTTP_STAGE_READING_HEADER	2		// 读取http头
+
 struct http_connection {
 	// 内存管理
 	DLIST_ENTRY(http_connection, entry);
@@ -39,6 +51,8 @@ struct http_connection {
 	struct szbuff* inputbuffer;
 	// 在此连接上的所有请求队列
 	QUEUE_HEAD(http_request) reqhead;
+	// 当前处理阶段，参见HTTP_REQ_STAGE_***
+	unsigned char stage;
 
 	struct http_server* httpsvr;
 };
