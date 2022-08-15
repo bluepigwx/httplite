@@ -4,11 +4,36 @@
 #include "httpstage.h"
 #include "buff.h"
 
+static char* _strsep(char** ss, const char* del);
 
 
-// 解析request请求
+
+static char* _strsep(char** ss, const char* del)
+{
+	return nullptr;
+}
+
+// 解析request请求，填充request结构
 static int http_parse_req_line(http_request* req, char* szbuff, int len)
 {
+	char* method = _strsep(&szbuff, " ");
+	if (method == nullptr)
+	{
+		return -1;
+	}
+
+	char* url = _strsep(&szbuff, " ");
+	if (url == nullptr)
+	{
+		return -1;
+	}
+
+	char* version = _strsep(&szbuff, " ");
+	if (version == nullptr)
+	{
+		return -1;
+	}
+	
 	return 0;
 }
 
