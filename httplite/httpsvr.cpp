@@ -4,6 +4,7 @@
 #include "select_backend.h"
 #include "buff.h"
 #include "queue.h"
+#include "httpstage.h"
 
 
 static http_request* httpsvr_new_request(http_connection* conn);
@@ -62,9 +63,15 @@ static int httpsvr_read_callback(int fd, void* arg)
 	switch (conn->stage)
 	{
 		case HTTP_STAGE_READING_PREPARE:
-		break;
+			http_stage_prepare(conn, req);
+			break;
 		case HTTP_STAGE_READING_HEADER:
+			http_stage_header(conn, req);
+			break;
 		break;
+		case HTTP_STAGE_READING_BODY:
+			http_stage_body(conn, req);
+			break;
 		default:
 			;
 	}

@@ -35,10 +35,12 @@ struct http_request {
 
 //=============================================================
 // http服务器的连接对象
+// HTTP_STAGE_READING_PREPARE -> HTTP_STAGE_READING_HEADER -> HTTP_STAGE_READING_BODY
 
 // 处理阶段
 #define HTTP_STAGE_READING_PREPARE	1	// 数据准备阶段
-#define HTTP_STAGE_READING_HEADER	2		// 读取http头
+#define HTTP_STAGE_READING_HEADER	2	// 读取http头
+#define HTTP_STAGE_READING_BODY		3	// 请求体
 
 struct http_connection {
 	// 内存管理
