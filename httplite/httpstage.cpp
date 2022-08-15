@@ -1,3 +1,6 @@
+#include <stdlib.h>
+#include <string.h>
+#include <stdio.h>
 #include "httpstage.h"
 #include "buff.h"
 
@@ -17,6 +20,7 @@ int http_stage_prepare(http_connection* conn, http_request* req)
 	int ret = buff_read_line(conn->inputbuffer, szbuff, sizeof(szbuff));
 	if (ret < 0)
 	{	
+		// 报错了
 		httpsvr_close_connection(conn, 0);
 		return -1;
 	}
@@ -25,7 +29,8 @@ int http_stage_prepare(http_connection* conn, http_request* req)
 	{
 		return 0;
 	}
-	// 收到一整行了
+	//else 收到一整行了
+
 	ret = http_parse_req_line(req, szbuff, sizeof(szbuff));
 	if (ret < 0)
 	{
