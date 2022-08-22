@@ -41,7 +41,6 @@ static int http_parse_req_line(http_request* req, char* szbuff, int len)
 int http_stage_prepare(http_connection* conn, http_request* req)
 {
 	static char szbuff[1024];
-
 	int ret = buff_read_line(conn->inputbuffer, szbuff, sizeof(szbuff));
 	if (ret < 0)
 	{	
@@ -64,7 +63,6 @@ int http_stage_prepare(http_connection* conn, http_request* req)
 	}
 
 	conn->stage = HTTP_STAGE_READING_HEADER;
-
 	http_stage_header(conn, req);
 
 	return 0;
